@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # Author: cbk914
+
 import asyncio
 import argparse
 import logging
 
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -25,8 +27,8 @@ class HoneypotProtocol(asyncio.Protocol):
             self.transport.write(b"Welcome to Telnet service.\r\n")
 
     def data_received(self, data):
-        message = data.decode()
-        logger.info(f"Received data on {self.service_name}: {message.strip()}")
+        message = data.decode().strip()
+        logger.info(f"Received data on {self.service_name}: {message}")
         if self.service_name == "ftp":
             self.process_ftp_commands(message)
         elif self.service_name == "telnet":
@@ -60,14 +62,21 @@ async def main(services):
 
     await asyncio.gather(*tasks)
 
+def parse_services(services_list):
+    services = {}
+    for service in services_list:
+        try:
+            name, port = service.split(":")
+            services[name] = int(port)
+        except ValueError:
+            logger.error(f"Invalid service definition: {service}. Expected format: service:port")
+            sys.exit(1)
+    return services
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--services", nargs="+", help="List of services and ports (e.g., ssh:2222 ftp:2121 telnet:2323)")
+    parser = argparse.ArgumentParser(description="Simple honeypot for multiple services")
+    parser.add_argument("-s", "--services", nargs="+", help="List of services and ports (e.g., ssh:2222 ftp:2121 telnet:2323)", required=True)
     args = parser.parse_args()
 
-    services = {}
-    for s in args.services:
-        service, port = s.split(":")
-        services[service] = int(port)
-
+    services = parse_services(args.services)
     asyncio.run(main(services))
